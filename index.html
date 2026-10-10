@@ -55,15 +55,15 @@ li{margin:.3em 0}table{width:100%;border-collapse:collapse}td{padding:6px 0;bord
 </main>
 <nav id="nav"></nav>
 <script>
-const $=s=>document.querySelector(s),L=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},S=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const $=s=>document.querySelector(s),L=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},S=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const T={en:{weather:"Weather",crops:"Crops",land:"Land",pfum:"Pfumvudza",records:"Records",ik:"Indigenous knowledge",soon:"Soon",tag:"Farming knowledge, offline"},
 sn:{weather:"Mamiriro ekunze",crops:"Zvirimwa",land:"Ivhu",pfum:"Pfumvudza",records:"Zvinyorwa",ik:"Ruzivo rwechinyakare",soon:"Zvichauya",tag:"Ruzivo rwekurima, pasina internet"},
 nd:{weather:"Isimo sezulu",crops:"Izitshalo",land:"Umhlaba",pfum:"Pfumvudza",records:"Amarekhodi",ik:"Ulwazi lwesintu",soon:"Kuyeza",tag:"Ulwazi lokulima, ngaphandle kwe-inthanethi"}};
 const CR=[{n:{en:"Maize",sn:"Chibage",nd:"Umumbu"},i:"Plant with first effective rains (Nov–Dec). Spacing about 75 cm rows. Apply basal fertiliser at planting and top-dress 4–6 weeks later. Watch for fall armyworm."},
-{n:{en:"Groundnuts",sn:"Nzungu",nd:"Amazambane amathofu (Intongomane)"},i:"Suits sandy loam soils. Plant Nov–Dec. Rotate with cereals to restore soil nitrogen. Dry well before storing to avoid aflatoxin."},
+{n:{en:"Groundnuts",sn:"Nzungu",nd:"Amakinati"},i:"Suits sandy loam soils. Plant Nov–Dec. Rotate with cereals to restore soil nitrogen. Dry well before storing to avoid aflatoxin."},
 {n:{en:"Sorghum",sn:"Mapfunde",nd:"Amabele"},i:"Drought tolerant; good for Natural Regions IV and V. Plant Nov–Dec. Bird scaring is needed near maturity."},
 {n:{en:"Cowpeas",sn:"Nyemba",nd:"Indumba"},i:"Fast-growing legume. Can be intercropped with maize. Leaves and grain are both edible."}];
-let lang=L("lang")||"en";
+let lang=T[L("lang")]?L("lang"):"en";
 const tabs=["weather","crops","land","pfum","rec","ik","soon"],tk={rec:"records"};
 function tr(){const t=T[lang];document.documentElement.lang=lang;$("#tag").textContent=t.tag;
 document.querySelectorAll("[data-t]").forEach(e=>e.textContent=t[e.dataset.t]);
@@ -73,34 +73,34 @@ let cur="weather";function show(x){cur=x;document.querySelectorAll("section").fo
 $("#nav").onclick=e=>{if(e.target.dataset.x)show(e.target.dataset.x)};
 $("#lang").value=lang;$("#lang").onchange=e=>{lang=e.target.value;S("lang",lang);tr()};
 // Weather (Open-Meteo, cached)
-const WC={0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",61:"Light rain",63:"Rain",65:"Heavy rain",80:"Showers",95:"Thunderstorm"};
+const WC={0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",73:"Snow",75:"Heavy snow",80:"Light showers",81:"Showers",82:"Heavy showers",95:"Thunderstorm",96:"Thunderstorm with hail",99:"Thunderstorm with hail"};
 function drawW(d,old){$("#temp").textContent=Math.round(d.current.temperature_2m)+"°C";$("#wdesc").textContent=WC[d.current.weather_code]||"Variable";
 $("#wmeta").textContent=`Humidity ${d.current.relative_humidity_2m}% · Wind ${d.current.wind_speed_10m} km/h`;
-$("#fc").innerHTML=d.daily.time.map((t,i)=>`<tr><td>${new Date(t).toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</td><td>${Math.round(d.daily.temperature_2m_min[i])}–${Math.round(d.daily.temperature_2m_max[i])}°C</td><td>${d.daily.precipitation_sum[i]} mm</td></tr>`).join("");
-$("#wnote").textContent=old?"Offline: showing saved forecast.":"Updated just now. Data: Open-Meteo."}
+$("#fc").innerHTML=d.daily.time.map((t,i)=>`<tr><td>${new Date(t+"T12:00").toLocaleDateString(undefined,{weekday:"short",day:"numeric"})}</td><td>${Math.round(d.daily.temperature_2m_min[i])}–${Math.round(d.daily.temperature_2m_max[i])}°C</td><td>${d.daily.precipitation_sum[i]} mm</td></tr>`).join("");
+$("#wnote").textContent=old?"Offline: showing saved forecast"+(d.saved?" from "+new Date(d.saved).toLocaleString():"")+".":"Updated just now. Data: Open-Meteo."}
 async function wx(lat,lon){const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`;
-try{const d=await(await fetch(u)).json();S("wx",d);drawW(d,0)}catch(e){const c=L("wx");c?drawW(c,1):$("#wdesc").textContent="No saved forecast yet. Connect to the internet once."}}
+try{const r=await fetch(u);if(!r.ok)throw 0;const d=await r.json();if(!d.current||!d.daily)throw 0;d.saved=Date.now();S("wx",d);drawW(d,0)}catch(e){const c=L("wx");c?drawW(c,1):$("#wdesc").textContent="No saved forecast yet. Connect to the internet once."}}
 const p=L("pos")||[-17.83,31.05];wx(p[0],p[1]);
-$("#loc").onclick=()=>navigator.geolocation?.getCurrentPosition(g=>{S("pos",[g.coords.latitude,g.coords.longitude]);wx(g.coords.latitude,g.coords.longitude)},()=>$("#wnote").textContent="Location blocked. Allow it in browser settings.");
+$("#loc").onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(g=>{S("pos",[g.coords.latitude,g.coords.longitude]);wx(g.coords.latitude,g.coords.longitude)},()=>$("#wnote").textContent="Location blocked. Allow it in browser settings."):$("#wnote").textContent="This device cannot share its location.";
 // Land area
 let pts=L("pts")||[];
 function area(){if(pts.length<3)return 0;const R=6371000,la=pts.reduce((a,q)=>a+q[0],0)/pts.length*Math.PI/180;
 const xy=pts.map(q=>[q[1]*Math.PI/180*R*Math.cos(la),q[0]*Math.PI/180*R]);let s=0;
 xy.forEach((a,i)=>{const b=xy[(i+1)%xy.length];s+=a[0]*b[1]-b[0]*a[1]});return Math.abs(s)/2}
 function dl(){const m=area();$("#pts").textContent=pts.length;$("#ha").textContent=(m/1e4).toFixed(2)+" ha";$("#ac").textContent=(m/4046.86).toFixed(2)+" acres";S("pts",pts)}
-$("#addpt").onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(g=>{pts.push([g.coords.latitude,g.coords.longitude]);$("#gps").textContent="Accuracy ±"+Math.round(g.coords.accuracy)+" m";dl()},()=>$("#gps").textContent="Cannot read GPS. Turn on location.",{enableHighAccuracy:true}):0;
+$("#addpt").onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(g=>{pts.push([g.coords.latitude,g.coords.longitude]);$("#gps").textContent="Accuracy ±"+Math.round(g.coords.accuracy)+" m";dl()},()=>$("#gps").textContent="Cannot read GPS. Turn on location.",{enableHighAccuracy:true,timeout:20000,maximumAge:0}):$("#gps").textContent="This device has no GPS access.";
 $("#undo").onclick=()=>{pts.pop();dl()};$("#clr").onclick=()=>{pts=[];dl()};dl();
 // Records
 let rc=L("rec")||[];
 function dr(){const i=rc.filter(r=>r.t=="in").reduce((a,r)=>a+r.a,0),o=rc.filter(r=>r.t=="out").reduce((a,r)=>a+r.a,0),n=i-o;
 $("#sum").innerHTML=`<table><tr><td>Income</td><td>$${i.toFixed(2)}</td></tr><tr><td>Expenses</td><td>$${o.toFixed(2)}</td></tr><tr><td><b>Profit</b></td><td><b>$${n.toFixed(2)}</b></td></tr></table>`;
 $("#ready").textContent=rc.length<5?"Keep at least 5 records to start building a loan-ready history.":n>0?"Your records show a profit. Lenders value a steady history.":"Your records show a loss this period. Review costs before applying.";
-$("#rl").innerHTML=rc.slice().reverse().map(r=>`<tr><td>${r.d}</td><td>${r.i}</td><td>${r.t=="in"?"+":"−"}$${r.a.toFixed(2)}</td></tr>`).join("");S("rec",rc)}
-$("#radd").onclick=()=>{const a=parseFloat($("#ra").value);if(!$("#ri").value||!(a>=0))return alert("Enter an item and an amount.");
-rc.push({t:$("#rt").value,i:$("#ri").value,a,d:new Date().toISOString().slice(0,10)});$("#ri").value=$("#ra").value="";dr()};
+$("#rl").innerHTML=rc.slice().reverse().map(r=>`<tr><td>${r.d}</td><td>${esc(r.i)}</td><td>${r.t=="in"?"+":"−"}$${r.a.toFixed(2)}</td></tr>`).join("");S("rec",rc)}
+$("#radd").onclick=()=>{const a=parseFloat($("#ra").value);if(!$("#ri").value.trim()||!(a>=0))return alert("Enter an item and an amount.");
+rc.push({t:$("#rt").value,i:$("#ri").value.trim(),a,d:new Date().toISOString().slice(0,10)});$("#ri").value=$("#ra").value="";dr()};
 $("#csv").onclick=()=>{const b=new Blob(["date,type,item,amount\n"+rc.map(r=>[r.d,r.t,'"'+r.i.replace(/"/g,'""')+'"',r.a].join(",")).join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="varimi-records.csv";a.click()};dr();
 // Indigenous knowledge
-let ks=L("ik")||[];const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let ks=L("ik")||[];
 function dk(){$("#kl").innerHTML=ks.map(k=>`<div class="c"><h3>${esc(k.t)}</h3><p>${esc(k.b)}</p></div>`).join("");S("ik",ks)}
 $("#kadd").onclick=()=>{if(!$("#kt").value||!$("#kb").value)return alert("Add a title and description.");ks.unshift({t:$("#kt").value,b:$("#kb").value});$("#kt").value=$("#kb").value="";dk()};dk();
 tr();if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");
